@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Start API"""
+""" Start API """
 
 from flask import Blueprint
 
