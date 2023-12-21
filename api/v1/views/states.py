@@ -10,44 +10,41 @@ from models.state import State
 @app_views.route('/states', methods=['GET'], strict_slashes=False)
 def get_states():
     """get all states"""
-    states = storage.all(State)
-    states_list = []
-    for state in states.values():
-        states_list.append(state.to_dict())
-    return jsonify(states_list)
+    states = storage.all(State).values()
+    return jsonify([state.to_dict() for state in states])
 
 
 @app_views.route('/states/<state_id>', methods=['GET'], strict_slashes=False)
 def get_state(state_id):
     """get state by id"""
     state = storage.get(State, state_id)
-    if state is None:
+    if not state:
         abort(404)
     return jsonify(state.to_dict())
 
 
-@app_views.route('/states/<state_id>', methods=['DELETE']
-                    , strict_slashes=False)
+@app_views.route('/states/<state_id>', methods=['DELETE'],
+                 strict_slashes=False)
 def delete_state(state_id):
     """delete state by id"""
     state = storage.get(State, state_id)
-    if state is None:
+    if not state:
         abort(404)
     storage.delete(state)
     storage.save()
-    return jsonify({})
+    return jsonify({}), 200
 
 
 @app_views.route('/states', methods=['POST'], strict_slashes=False)
 def post_state():
     """create state"""
-    if not request.get_json():
+    data = request.get_json()
+    if not data:
         abort(400, 'Not a JSON')
-    if 'name' not in request.get_json():
+    if 'name' not in data:
         abort(400, 'Missing name')
-    state = State(**request.get_json())
-    storage.new(state)
-    storage.save()
+    state = State(**data)
+    state.save()
     return jsonify(state.to_dict()), 201
 
 
@@ -55,12 +52,15 @@ def post_state():
 def put_state(state_id):
     """update state"""
     state = storage.get(State, state_id)
-    if state is None:
+    if not state:
         abort(404)
-    if not request.get_json():
+    data = request.get_json()
+    if not data:
         abort(400, 'Not a JSON')
-    for key, value in request.get_json().items():
-        if key not in ['id', 'created_at', 'updated_at']:
+    req_json = request.get_json()
+    ignore_key = ['id', 'created_at', 'updated_at']
+    for key, value in req_json.items():
+        if key not in ignore_key:
             setattr(state, key, value)
-    storage.save()
-    return jsonify(state.to_dict())
+    state.save()
+    return jsonify(state.to_dict()), 200
