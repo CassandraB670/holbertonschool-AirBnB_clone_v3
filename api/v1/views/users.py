@@ -39,7 +39,7 @@ def delete_user(user_id):
 
 @app_views.route('/users', methods=['POST'],
                  strict_slashes=False)
-def create_amenity():
+def create_user():
     """Creates a User"""
     if not request.get_json():
         abort(400, 'Not a JSON')
