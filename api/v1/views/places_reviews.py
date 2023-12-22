@@ -5,14 +5,21 @@ from flask import Flask, jsonify, abort, request
 from api.v1.views import app_views
 from models import storage
 from models.review import Review
+from models.place import Place
+from models.user import User
 
 
-@app_views.route('/reviews', methods=['GET'], strict_slashes=False)
-def get_reviews():
+@app_views.route('/places/<place_id>/reviews', methods=['GET'],
+                 strict_slashes=False)
+def get_reviews(place_id):
     """Retrieves the list of all Places Reviews objects"""
-    reviews = storage.all(Review).values()
-    reviews_list = [review.to_dict() for review in reviews]
-    return jsonify(reviews_list)
+    if not storage.get(Place, place_id):
+        abort(404)
+    list_reviews = [
+        review.to_dict() for review in
+        storage.all(Review).values() if review.place_id == place_id
+        ]
+    return jsonify(list_reviews)
 
 
 @app_views.route('/reviews/<review_id>', methods=['GET'],
@@ -37,14 +44,23 @@ def delete_review(review_id):
     return jsonify({}), 200
 
 
-@app_views.route('/reviews', methods=['POST'],
+@app_views.route('/places/<place_id>/reviews', methods=['POST'],
                  strict_slashes=False)
-def create_review():
+def create_review(place_id):
     """Creates a Place Review"""
+    place = storage.get(Place, place_id)
+    if not place:
+        abort(404)
     if not request.get_json():
-        abort(400, 'Not a JSON')
-    if 'name' not in request.get_json():
-        abort(400, 'Missing name')
+        abort(400, "Not a JSON")
+    if "user_id" not in request.get_json():
+        abort(400, "Missing user_id")
+    if "text" not in request.get_json():
+        abort(400, "Missing text")
+    user = storage.get(User, request.get_json()["user_id"])
+    if not user:
+        abort(404)
+    request.get_json()['place_id'] = place_id
     review = Review(**request.get_json())
     review.save()
     return jsonify(review.to_dict()), 201
@@ -60,7 +76,7 @@ def update_review(review_id):
     if not request.get_json():
         abort(400, 'Not a JSON')
     data = request.get_json()
-    ignore_keys = ['id', 'created_at', 'updated_at']
+    ignore_keys = ['id', 'user_id', 'place_id', 'created_at', 'updated_at']
     for key, value in data.items():
         if key not in ignore_keys:
             setattr(review, key, value)
